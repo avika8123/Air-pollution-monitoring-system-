@@ -1,0 +1,71 @@
+#include <ESP8266WiFi.h>
+#include <BlynkSimpleEsp8266.h>
+#include <DHT.h>
+
+// Blynk Auth Token
+char auth[] = "YourAuthToken";
+
+// Wi-Fi credentials
+char ssid[] = "YourSSID";
+char pass[] = "YourPassword";
+
+// DHT11 sensor pin
+#define DHTPIN 2
+#define DHTTYPE DHT11
+
+// Rain sensor pin
+#define RAIN_SENSOR_PIN A0
+
+// Buzzer pin
+#define BUZZER_PIN 13
+
+DHT dht(DHTPIN, DHTTYPE);
+
+void setup() {
+  // Initialize serial communication
+  Serial.begin(9600);
+  
+  // Initialize Blynk
+  Blynk.begin(auth, ssid, pass);
+
+  // Initialize DHT11 sensor
+  dht.begin();
+
+  // Initialize buzzer pin as output
+  pinMode(BUZZER_PIN, OUTPUT);
+}
+
+void loop() {
+  // Run Blynk
+  Blynk.run();
+  
+  // Read temperature and humidity
+  float temperature = dht.readTemperature();
+  float humidity = dht.readHumidity();
+  
+  // Read rain sensor value
+  int rainValue = analogRead(RAIN_SENSOR_PIN);
+  
+  // Report to Blynk
+  Blynk.virtualWrite(V1, temperature);
+  Blynk.virtualWrite(V2, humidity);
+  Blynk.virtualWrite(V3, rainValue);
+  
+  // Check for extreme conditions and set alerts
+  if (temperature > 40 || humidity > 80 || rainValue < 300) {
+    // Extreme condition detected
+    Blynk.virtualWrite(V4, "RED");  // Alert: RED
+    digitalWrite(BUZZER_PIN, HIGH); // Activate buzzer
+  } else if (temperature > 30 || humidity > 60 || rainValue < 500) {
+    // Moderate condition detected
+    Blynk.virtualWrite(V4, "YELLOW"); // Alert: YELLOW
+    digitalWrite(BUZZER_PIN, LOW);    // Deactivate buzzer
+  } else {
+    // Normal condition
+    Blynk.virtualWrite(V4, "GREEN"); // Alert: GREEN
+    digitalWrite(BUZZER_PIN, LOW);   // Deactivate buzzer
+  }
+  
+  // Wait for a second before next read
+  delay(1000);
+}
