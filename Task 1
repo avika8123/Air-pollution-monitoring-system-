@@ -1,0 +1,85 @@
+#include <LiquidCrystal.h>
+#include <SPI.h>
+#include <SD.h>
+
+// Initialize the LCD (RS, E, D4, D5, D6, D7)
+LiquidCrystal lcd(7, 8, 9, 10, 11, 12);
+
+// Define pins for the sensors
+const int mq135Pin = A0;
+const int mq6Pin = A1;
+const int buzzerPin = 13;
+
+// SD card pin
+const int chipSelect = 4;
+
+File dataFile;
+
+void setup() {
+  // Initialize serial communication
+  Serial.begin(9600);
+  
+  // Set up the LCD's number of columns and rows
+  lcd.begin(16, 2);
+  
+  // Initialize the buzzer pin as output
+  pinMode(buzzerPin, OUTPUT);
+  
+  // Initialize the SD card
+  if (!SD.begin(chipSelect)) {
+    Serial.println("Card failed, or not present");
+    return;
+  }
+  Serial.println("Card initialized.");
+  
+  // Create or open the data log file
+  dataFile = SD.open("datalog.txt", FILE_WRITE);
+  if (dataFile) {
+    dataFile.println("Time, MQ135, MQ6");
+    dataFile.close();
+  } else {
+    Serial.println("Error opening datalog.txt");
+  }
+}
+
+void loop() {
+  // Read the sensor values
+  int mq135Value = analogRead(mq135Pin);
+  int mq6Value = analogRead(mq6Pin);
+  
+  // Convert sensor values to PPM
+  float mq135PPM = mq135Value * (5.0 / 1023.0) * 1000;
+  float mq6PPM = mq6Value * (5.0 / 1023.0) * 1000;
+  
+  // Display the PPM values on the LCD
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("MQ135: ");
+  lcd.print(mq135PPM);
+  lcd.setCursor(0, 1);
+  lcd.print("MQ6: ");
+  lcd.print(mq6PPM);
+  
+  // Check if air quality deteriorates and trigger alarm
+  if (mq135PPM > 1000 || mq6PPM > 1000) {
+    digitalWrite(buzzerPin, HIGH);
+  } else {
+    digitalWrite(buzzerPin, LOW);
+  }
+  
+  // Log data to SD card
+  dataFile = SD.open("datalog.txt", FILE_WRITE);
+  if (dataFile) {
+    dataFile.print(millis());
+    dataFile.print(", ");
+    dataFile.print(mq135PPM);
+    dataFile.print(", ");
+    dataFile.println(mq6PPM);
+    dataFile.close();
+  } else {
+    Serial.println("Error opening datalog.txt");
+  }
+  
+  // Wait for a second before next read
+  delay(1000);
+}
