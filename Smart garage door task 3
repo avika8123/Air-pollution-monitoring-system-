@@ -1,0 +1,105 @@
+#include <ESP8266WiFi.h>
+#include <BlynkSimpleEsp8266.h>
+#include <NewPing.h>
+
+// Blynk Auth Token
+char auth[] = "YourAuthToken";
+
+// Wi-Fi credentials
+char ssid[] = "YourSSID";
+char pass[] = "YourPassword";
+
+// Define pins
+#define RELAY_PIN 5
+#define TRIGGER_PIN 6
+#define ECHO_PIN 7
+#define VOICE_PIN A0
+#define BUZZER_PIN 13
+
+// Ultrasonic sensor parameters
+#define MAX_DISTANCE 200
+
+NewPing sonar(TRIGGER_PIN, ECHO_PIN, MAX_DISTANCE);
+
+// Variables
+int voiceCommand;
+bool doorStatus = false;  // false: closed, true: open
+
+void setup() {
+  // Initialize serial communication
+  Serial.begin(9600);
+  
+  // Initialize Blynk
+  Blynk.begin(auth, ssid, pass);
+
+  // Initialize relay pin as output
+  pinMode(RELAY_PIN, OUTPUT);
+  digitalWrite(RELAY_PIN, LOW);
+
+  // Initialize buzzer pin as output
+  pinMode(BUZZER_PIN, OUTPUT);
+
+  // Initialize ultrasonic sensor
+  pinMode(TRIGGER_PIN, OUTPUT);
+  pinMode(ECHO_PIN, INPUT);
+}
+
+void loop() {
+  // Run Blynk
+  Blynk.run();
+  
+  // Check ultrasonic sensor distance
+  unsigned int distance = sonar.ping_cm();
+  
+  // Check voice command
+  voiceCommand = analogRead(VOICE_PIN);
+
+  // Open/close the garage door based on proximity
+  if (distance > 0 && distance < 50) {
+    openGarageDoor();
+  } else {
+    closeGarageDoor();
+  }
+
+  // Open/close the garage door based on voice command
+  if (voiceCommand > 500) {
+    toggleGarageDoor();
+  }
+  
+  // Notify user about the door status
+  Blynk.virtualWrite(V1, doorStatus ? "OPEN" : "CLOSED");
+  
+  // Smart notifications (optional)
+  // Blynk.notify(doorStatus ? "Garage door opened" : "Garage door closed");
+
+  // Wait before next read
+  delay(1000);
+}
+
+void openGarageDoor() {
+  if (!doorStatus) {
+    digitalWrite(RELAY_PIN, HIGH);
+    delay(5000);  // Simulate door opening time
+    digitalWrite(RELAY_PIN, LOW);
+    doorStatus = true;
+    Blynk.notify("Garage door opened");
+  }
+}
+
+void closeGarageDoor() {
+  if (doorStatus) {
+    digitalWrite(RELAY_PIN, HIGH);
+    delay(5000);  // Simulate door closing time
+    digitalWrite(RELAY_PIN, LOW);
+    doorStatus = false;
+    Blynk.notify("Garage door closed");
+  }
+}
+
+void toggleGarageDoor() {
+  if (doorStatus) {
+    closeGarageDoor();
+  } else {
+    openGarageDoor();
+  }
+}
